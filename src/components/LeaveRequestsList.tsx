@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLeave } from '@/contexts/LeaveContext';
@@ -8,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
-import { Eye, CheckCircle, XCircle, FileText } from 'lucide-react';
+import { Eye, CheckCircle, XCircle, FileText, Download } from 'lucide-react';
+import { generateLeavePDF } from '@/utils/pdfGenerator';
 
 const LeaveRequestsList = () => {
   const { user } = useAuth();
@@ -29,6 +29,22 @@ const LeaveRequestsList = () => {
       description: "Le statut a été mis à jour avec succès.",
     });
     setManagerComment('');
+  };
+
+  const handleDownloadPDF = (request: any) => {
+    try {
+      generateLeavePDF(request);
+      toast({
+        title: "PDF téléchargé",
+        description: "L'attestation de congé a été téléchargée avec succès.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Une erreur s'est produite lors du téléchargement du PDF.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -176,6 +192,19 @@ const LeaveRequestsList = () => {
                         )}
                       </DialogContent>
                     </Dialog>
+
+                    {/* Bouton de téléchargement PDF pour les congés approuvés */}
+                    {request.status === 'approved' && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleDownloadPDF(request)}
+                        className="text-green-600 border-green-600 hover:bg-green-50"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Télécharger PDF
+                      </Button>
+                    )}
 
                     {user.role === 'manager' && request.status === 'pending' && (
                       <>

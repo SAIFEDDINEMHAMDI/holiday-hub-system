@@ -1,11 +1,12 @@
 
 import React, { createContext, useContext, useState } from 'react';
 import { LeaveRequest } from '@/types';
+import { sendLeaveApprovalEmail } from '@/services/emailService';
 
 interface LeaveContextType {
   requests: LeaveRequest[];
   addRequest: (request: Omit<LeaveRequest, 'id' | 'appliedDate' | 'status'>) => void;
-  updateRequestStatus: (id: string, status: 'approved' | 'rejected', comment?: string) => void;
+  updateRequestStatus: (id: string, status: 'approved' | 'rejected', comment?: string) => Promise<void>;
 }
 
 const LeaveContext = createContext<LeaveContextType | undefined>(undefined);
@@ -51,12 +52,31 @@ export const LeaveProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setRequests(prev => [...prev, newRequest]);
   };
 
-  const updateRequestStatus = (id: string, status: 'approved' | 'rejected', comment?: string) => {
+  const updateRequestStatus = async (id: string, status: 'approved' | 'rejected', comment?: string) => {
+    // Mettre à jour le statut localement d'abord
     setRequests(prev => prev.map(req => 
       req.id === id 
         ? { ...req, status, managerComment: comment }
         : req
     ));
+
+    // Si la demande est approuvée, envoyer un email
+    if (status === 'approved') {
+      try {
+        const approvedRequest = requests.find(req => req.id === id);
+        if (approvedRequest) {
+          const updatedRequest = { 
+            ...approvedRequest, 
+            status, 
+            managerComment: comment 
+          };
+          await sendLeaveApprovalEmail(updatedRequest);
+        }
+      } catch (error) {
+        console.error('Erreur lors de l\'envoi de l\'email:', error);
+        // L'email a échoué mais on garde le changement de statut
+      }
+    }
   };
 
   return (

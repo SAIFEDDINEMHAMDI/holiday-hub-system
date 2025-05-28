@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
-import { Eye, CheckCircle, XCircle, FileText, Download } from 'lucide-react';
+import { Eye, CheckCircle, XCircle, FileText, Download, Mail } from 'lucide-react';
 import { generateLeavePDF } from '@/utils/pdfGenerator';
 
 const LeaveRequestsList = () => {
@@ -15,6 +15,7 @@ const LeaveRequestsList = () => {
   const { requests, updateRequestStatus } = useLeave();
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [managerComment, setManagerComment] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   if (!user) return null;
 
@@ -22,13 +23,34 @@ const LeaveRequestsList = () => {
     ? requests 
     : requests.filter(req => req.employeeId === user.id);
 
-  const handleStatusUpdate = (requestId: string, status: 'approved' | 'rejected') => {
-    updateRequestStatus(requestId, status, managerComment);
-    toast({
-      title: status === 'approved' ? "Demande approuvée" : "Demande rejetée",
-      description: "Le statut a été mis à jour avec succès.",
-    });
-    setManagerComment('');
+  const handleStatusUpdate = async (requestId: string, status: 'approved' | 'rejected') => {
+    setIsProcessing(true);
+    
+    try {
+      await updateRequestStatus(requestId, status, managerComment);
+      
+      toast({
+        title: status === 'approved' ? "Demande approuvée" : "Demande rejetée",
+        description: status === 'approved' 
+          ? "Le statut a été mis à jour et un email de notification a été envoyé."
+          : "Le statut a été mis à jour avec succès.",
+        action: status === 'approved' ? (
+          <div className="flex items-center gap-1 text-sm text-green-600">
+            <Mail className="h-4 w-4" />
+            Email envoyé
+          </div>
+        ) : undefined,
+      });
+      setManagerComment('');
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Une erreur s'est produite lors de la mise à jour du statut.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleDownloadPDF = (request: any) => {
@@ -212,14 +234,16 @@ const LeaveRequestsList = () => {
                           size="sm" 
                           onClick={() => handleStatusUpdate(request.id, 'approved')}
                           className="bg-secondary hover:bg-secondary/90"
+                          disabled={isProcessing}
                         >
                           <CheckCircle className="h-4 w-4 mr-2" />
-                          Approuver
+                          {isProcessing ? 'Traitement...' : 'Approuver'}
                         </Button>
                         <Button 
                           size="sm" 
                           variant="destructive"
                           onClick={() => handleStatusUpdate(request.id, 'rejected')}
+                          disabled={isProcessing}
                         >
                           <XCircle className="h-4 w-4 mr-2" />
                           Rejeter
